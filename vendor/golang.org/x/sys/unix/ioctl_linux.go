@@ -50,19 +50,28 @@ func IoctlSetRTCWkAlrm(fd int, value *RTCWkAlrm) error {
 	return err
 }
 
+type ifreqEthtool struct {
+	name [IFNAMSIZ]byte
+	data unsafe.Pointer
+}
+
 // IoctlGetEthtoolDrvinfo fetches ethtool driver information for the network
 // device specified by ifname.
 func IoctlGetEthtoolDrvinfo(fd int, ifname string) (*EthtoolDrvinfo, error) {
-	ifr, err := newIfreq(ifname)
-	if err != nil {
-		return nil, err
+	// Leave room for terminating NULL byte.
+	if len(ifname) >= IFNAMSIZ {
+		return nil, EINVAL
 	}
 
-	value := EthtoolDrvinfo{Cmd: ETHTOOL_GDRVINFO}
-	ifrd := ifr.SetData(unsafe.Pointer(&value))
-
-	err = ioctl(fd, SIOCETHTOOL, uintptr(unsafe.Pointer(&ifrd)))
-	runtime.KeepAlive(ifrd)
+	value := EthtoolDrvinfo{
+		Cmd: ETHTOOL_GDRVINFO,
+	}
+	ifreq := ifreqEthtool{
+		data: unsafe.Pointer(&value),
+	}
+	copy(ifreq.name[:], ifname)
+	err := ioctl(fd, SIOCETHTOOL, uintptr(unsafe.Pointer(&ifreq)))
+	runtime.KeepAlive(ifreq)
 	return &value, err
 }
 

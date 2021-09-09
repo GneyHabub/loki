@@ -32,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -73,7 +72,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	var complMultipartUpload completeMultipartUpload
 
 	// Calculate the optimal parts info for a given size.
-	totalPartsCount, partSize, _, err := OptimalPartInfo(-1, opts.PartSize)
+	totalPartsCount, partSize, _, err := optimalPartInfo(-1, opts.PartSize)
 	if err != nil {
 		return UploadInfo{}, err
 	}
@@ -176,7 +175,7 @@ func (c Client) putObjectMultipartNoStream(ctx context.Context, bucketName, obje
 	// Sort all completed parts.
 	sort.Sort(completedParts(complMultipartUpload.Parts))
 
-	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload, PutObjectOptions{})
+	uploadInfo, err := c.completeMultipartUpload(ctx, bucketName, objectName, uploadID, complMultipartUpload)
 	if err != nil {
 		return UploadInfo{}, err
 	}
@@ -198,13 +197,6 @@ func (c Client) initiateMultipartUpload(ctx context.Context, bucketName, objectN
 	// Initialize url queries.
 	urlValues := make(url.Values)
 	urlValues.Set("uploads", "")
-
-	if opts.Internal.SourceVersionID != "" {
-		if _, err := uuid.Parse(opts.Internal.SourceVersionID); err != nil {
-			return initiateMultipartUploadResult{}, errInvalidArgument(err.Error())
-		}
-		urlValues.Set("versionId", opts.Internal.SourceVersionID)
-	}
 
 	// Set ContentType header.
 	customHeader := opts.Header()
@@ -309,7 +301,7 @@ func (c Client) uploadPart(ctx context.Context, bucketName, objectName, uploadID
 
 // completeMultipartUpload - Completes a multipart upload by assembling previously uploaded parts.
 func (c Client) completeMultipartUpload(ctx context.Context, bucketName, objectName, uploadID string,
-	complete completeMultipartUpload, opts PutObjectOptions) (UploadInfo, error) {
+	complete completeMultipartUpload) (UploadInfo, error) {
 	// Input validation.
 	if err := s3utils.CheckValidBucketName(bucketName); err != nil {
 		return UploadInfo{}, err
@@ -336,7 +328,6 @@ func (c Client) completeMultipartUpload(ctx context.Context, bucketName, objectN
 		contentBody:      completeMultipartUploadBuffer,
 		contentLength:    int64(len(completeMultipartUploadBytes)),
 		contentSHA256Hex: sum256Hex(completeMultipartUploadBytes),
-		customHeader:     opts.Header(),
 	}
 
 	// Execute POST to complete multipart upload for an objectName.

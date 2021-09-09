@@ -74,10 +74,7 @@ func (p *ProxyEndpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *ProxyEndpoint) executeBackendRequests(r *http.Request, resCh chan *backendResponse) {
 	responses := make([]*backendResponse, 0, len(p.backends))
 
-	var (
-		wg  = sync.WaitGroup{}
-		mtx = sync.Mutex{}
-	)
+	wg := sync.WaitGroup{}
 	wg.Add(len(p.backends))
 
 	for _, b := range p.backends {
@@ -108,9 +105,7 @@ func (p *ProxyEndpoint) executeBackendRequests(r *http.Request, resCh chan *back
 
 			// Keep track of the response if required.
 			if p.comparator != nil {
-				mtx.Lock()
 				responses = append(responses, res)
-				mtx.Unlock()
 			}
 
 			resCh <- res

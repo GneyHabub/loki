@@ -863,7 +863,6 @@ func (s *Server) handleRawConn(lisAddr string, rawConn net.Conn) {
 	// Finish handshaking (HTTP2)
 	st := s.newHTTP2Transport(conn, authInfo)
 	if st == nil {
-		conn.Close()
 		return
 	}
 

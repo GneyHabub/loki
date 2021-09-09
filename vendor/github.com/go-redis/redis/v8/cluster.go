@@ -68,9 +68,6 @@ type ClusterOptions struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 
-	// PoolFIFO uses FIFO mode for each node connection pool GET/PUT (default LIFO).
-	PoolFIFO bool
-
 	// PoolSize applies per cluster node and not for the whole cluster.
 	PoolSize           int
 	MinIdleConns       int
@@ -94,7 +91,7 @@ func (opt *ClusterOptions) init() {
 	}
 
 	if opt.PoolSize == 0 {
-		opt.PoolSize = 5 * runtime.GOMAXPROCS(0)
+		opt.PoolSize = 5 * runtime.NumCPU()
 	}
 
 	switch opt.ReadTimeout {
@@ -149,7 +146,6 @@ func (opt *ClusterOptions) clientOptions() *Options {
 		ReadTimeout:  opt.ReadTimeout,
 		WriteTimeout: opt.WriteTimeout,
 
-		PoolFIFO:           opt.PoolFIFO,
 		PoolSize:           opt.PoolSize,
 		MinIdleConns:       opt.MinIdleConns,
 		MaxConnAge:         opt.MaxConnAge,
@@ -595,16 +591,8 @@ func (c *clusterState) slotRandomNode(slot int) (*clusterNode, error) {
 	if len(nodes) == 0 {
 		return c.nodes.Random()
 	}
-	if len(nodes) == 1 {
-		return nodes[0], nil
-	}
-	randomNodes := rand.Perm(len(nodes))
-	for _, idx := range randomNodes {
-		if node := nodes[idx]; !node.Failing() {
-			return node, nil
-		}
-	}
-	return nodes[randomNodes[0]], nil
+	n := rand.Intn(len(nodes))
+	return nodes[n], nil
 }
 
 func (c *clusterState) slotNodes(slot int) []*clusterNode {

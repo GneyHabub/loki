@@ -57,7 +57,6 @@ type Options struct {
 	Dialer  func(context.Context) (net.Conn, error)
 	OnClose func(*Conn) error
 
-	PoolFIFO           bool
 	PoolSize           int
 	MinIdleConns       int
 	MaxConnAge         time.Duration
@@ -189,6 +188,7 @@ func (p *ConnPool) dialConn(ctx context.Context, pooled bool) (*Conn, error) {
 		return nil, err
 	}
 
+	internal.NewConnectionsCounter.Add(ctx, 1)
 	cn := NewConn(netConn)
 	cn.pooled = pooled
 	return cn, nil
@@ -309,21 +309,13 @@ func (p *ConnPool) freeTurn() {
 }
 
 func (p *ConnPool) popIdle() *Conn {
-	n := len(p.idleConns)
-	if n == 0 {
+	if len(p.idleConns) == 0 {
 		return nil
 	}
 
-	var cn *Conn
-	if p.opt.PoolFIFO {
-		cn = p.idleConns[0]
-		copy(p.idleConns, p.idleConns[1:])
-		p.idleConns = p.idleConns[:n-1]
-	} else {
-		idx := n - 1
-		cn = p.idleConns[idx]
-		p.idleConns = p.idleConns[:idx]
-	}
+	idx := len(p.idleConns) - 1
+	cn := p.idleConns[idx]
+	p.idleConns = p.idleConns[:idx]
 	p.idleConnsLen--
 	p.checkMinIdleConns()
 	return cn

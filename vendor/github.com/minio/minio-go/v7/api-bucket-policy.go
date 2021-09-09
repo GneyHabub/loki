@@ -63,7 +63,7 @@ func (c Client) putBucketPolicy(ctx context.Context, bucketName, policy string) 
 		return err
 	}
 	if resp != nil {
-		if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusNoContent {
 			return httpRespToErrorResponse(resp, bucketName, "")
 		}
 	}
